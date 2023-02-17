@@ -17,6 +17,11 @@ Player::Player(glm::vec3 startPos, unsigned int modelId, std::string name)
 	camFront = glm::vec3(0.0f, 0.0f, -1.0f);
 	camUp = glm::vec3(0.0f, 1.0f, 0.0f);
 	collision2DAABB = { -0.2,0.2, -0.2, 0.2 };
+
+	isAttacking = false;
+	canAttack = true;
+	attackAnimTimer = 0.0f;
+	attackAnimDuration = 0.25f;
 }
 
 void Player::update() {
@@ -64,6 +69,25 @@ void Player::update() {
 		position += glm::normalize(glm::cross(direction, glm::vec3(0.0f, 1.0f, 0.0f))) * strafeSpeed;
 	}
 
+
+
+	if (g_inputState.mouseState.leftButtonDown && canAttack) {
+		std::cout << "click! :D" << std::endl;
+		isAttacking = true;
+		canAttack = false;
+	}
+
+	if (isAttacking) {
+		std::cout << "Attacking " << attackAnimTimer << std::endl;
+		if (attackAnimTimer >= attackAnimDuration) {
+			attackAnimTimer = 0.0f;
+			isAttacking = false;
+			canAttack = true;
+		}
+		else {
+			attackAnimTimer += dTime;
+		}
+	}
 }
 
 Entity3D::Entity3D(glm::vec3 startPos, unsigned int modelId, std::string name)

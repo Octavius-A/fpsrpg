@@ -355,22 +355,21 @@ void renderGame() {
     cubeCameraModel = glm::rotate(cubeCameraModel, glm::radians(90.0f), glm::vec3(0.0f, 0.0f, 1.0f));
     cubeCameraModel = glm::rotate(cubeCameraModel, glm::radians(12.0f), glm::vec3(0.0f, 1.0f, 0.0f));
 
-    static float t = 0.0f;
-    if (t < 1) {
+    // Design idea: make this into a function that just returns a model matrix
+    // or takes a model matrix as input and some other params and returns a matrix
+    // then can be a function property of the equipped item - then specify different anims for different items?
+    // e.g. spear thrust
+    if (g_gameState.player->isAttacking) {
+        float t = g_gameState.player->attackAnimTimer / g_gameState.player->attackAnimDuration;
         float lerp1 = 0 * (1 - t) + 85.0f * t;
         float lerp2 = 0 * (1 - t) + 30.0f * t;
-        float lerp3 = 0 * (1 - t) + 0.2f * t;
+        float lerp3 = 0 * (1 - t) + 0.225f * t;
         float lerp4 = 0 * (1 - t) + 0.05f * t;
         cubeCameraModel = glm::rotate(cubeCameraModel, glm::radians(lerp1), glm::vec3(0.0f, 1.0f, 0.0f));
         cubeCameraModel = glm::rotate(cubeCameraModel, glm::radians(lerp2), glm::vec3(1.0f, 0.0f, 0.0f));
         cubeCameraModel = glm::translate(cubeCameraModel, glm::vec3(0.0f, lerp3, 0.0f));
         cubeCameraModel = glm::translate(cubeCameraModel, glm::vec3(-lerp4, 0.0f, 0.0f));
-        t += 0.003f;
     }
-    else {
-        t = 0.0f;
-    }
-    
 
     shader->setMat4("view", view);
     shader->setMat4("model", glm::inverse(view)* cubeCameraModel);

@@ -49,5 +49,10 @@ public:
 	glm::vec3 camFront;
 	glm::vec3 camUp;
 	Collision2DAABB collision2DAABB;
+
+	bool isAttacking;
+	bool canAttack;
+	float attackAnimTimer;
+	float attackAnimDuration;
 };
 

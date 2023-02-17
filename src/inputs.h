@@ -32,17 +32,17 @@ void handleInputs() {
 			case SDLK_e: g_inputState.e = false; break;
 			default: break;
 			}
-		//case SDL_MOUSEBUTTONDOWN:
-		//	switch (event.button.button) {
-		//	case SDL_BUTTON_LEFT: g_inputState.mouseState.leftButtonDown = true; break;
-		//	case SDL_BUTTON_RIGHT: g_inputState.mouseState.rightButtonDown = true; break;
-		//	default: break;
-		//	} break;
-		//case SDL_MOUSEBUTTONUP:
-		//	switch (event.button.button) {
-		//	case SDL_BUTTON_LEFT: g_inputState.mouseState.leftButtonDown = false; break;
-		//	case SDL_BUTTON_RIGHT: g_inputState.mouseState.rightButtonDown = false; break;
-		//	} break;
+		case SDL_MOUSEBUTTONDOWN:
+			switch (event.button.button) {
+			case SDL_BUTTON_LEFT: g_inputState.mouseState.leftButtonDown = true; break;
+			case SDL_BUTTON_RIGHT: g_inputState.mouseState.rightButtonDown = true; break;
+			default: break;
+			} break;
+		case SDL_MOUSEBUTTONUP:
+			switch (event.button.button) {
+			case SDL_BUTTON_LEFT: g_inputState.mouseState.leftButtonDown = false; break;
+			case SDL_BUTTON_RIGHT: g_inputState.mouseState.rightButtonDown = false; break;
+			} break;
 		//case SDL_MOUSEMOTION:
 		//	g_inputState.mouseState.mouseX = event.motion.x;
 		//	g_inputState.mouseState.mouseY = event.motion.y;
