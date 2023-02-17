@@ -354,6 +354,7 @@ void renderGame() {
     cubeCameraModel = glm::rotate(cubeCameraModel, glm::radians(90.0f), glm::vec3(1.0f, 0.0f, 0.0f));
     cubeCameraModel = glm::rotate(cubeCameraModel, glm::radians(90.0f), glm::vec3(0.0f, 0.0f, 1.0f));
     cubeCameraModel = glm::rotate(cubeCameraModel, glm::radians(12.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+    
 
     // Design idea: make this into a function that just returns a model matrix
     // or takes a model matrix as input and some other params and returns a matrix

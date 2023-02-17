@@ -20,8 +20,11 @@ Player::Player(glm::vec3 startPos, unsigned int modelId, std::string name)
 
 	isAttacking = false;
 	canAttack = true;
+	attackCooldown = false;
 	attackAnimTimer = 0.0f;
 	attackAnimDuration = 0.25f;
+	cooldownTimer = 0.0f;
+	cooldownDuration = 0.1f;
 }
 
 void Player::update() {
@@ -70,24 +73,34 @@ void Player::update() {
 	}
 
 
-
 	if (g_inputState.mouseState.leftButtonDown && canAttack) {
-		std::cout << "click! :D" << std::endl;
 		isAttacking = true;
 		canAttack = false;
 	}
 
 	if (isAttacking) {
-		std::cout << "Attacking " << attackAnimTimer << std::endl;
 		if (attackAnimTimer >= attackAnimDuration) {
 			attackAnimTimer = 0.0f;
+			//canAttack = true;
+			attackCooldown = true;
 			isAttacking = false;
-			canAttack = true;
 		}
 		else {
 			attackAnimTimer += dTime;
 		}
 	}
+
+	if (attackCooldown) {
+		if (cooldownTimer >= cooldownDuration) {
+			cooldownTimer = 0.0f;
+			attackCooldown = false;
+			canAttack = true;
+		}
+		else {
+			cooldownTimer += dTime;
+		}
+	}
+
 }
 
 Entity3D::Entity3D(glm::vec3 startPos, unsigned int modelId, std::string name)

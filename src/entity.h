@@ -54,5 +54,8 @@ public:
 	bool canAttack;
 	float attackAnimTimer;
 	float attackAnimDuration;
+	float cooldownTimer;
+	float cooldownDuration;
+	bool attackCooldown;
 };
 
