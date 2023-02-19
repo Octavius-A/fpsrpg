@@ -11,7 +11,7 @@
 class Shader
 {
 public:
-    Shader(const char* vertPath, const char* fragPath);
+    Shader(const char* vertPath, const char* fragPath, const char* geomPath = nullptr);
 
     GLuint ID;
 

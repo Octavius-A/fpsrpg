@@ -21,12 +21,14 @@ std::string loadShader(const char* path, std::string* out) {
     return shaderCode;
 }
 
-Shader::Shader(const char* vertPath, const char* fragPath) {
+Shader::Shader(const char* vertPath, const char* fragPath, const char* geomPath) {
 
     std::string tempVertCode;
     std::string tempFragCode;
+    std::string tempGeomCode;
     loadShader(vertPath, &tempVertCode);
     loadShader(fragPath, &tempFragCode);
+    loadShader(fragPath, &tempGeomCode);
 
     const char* vertCode = tempVertCode.c_str();
     const char* fragCode = tempFragCode.c_str();
@@ -42,7 +44,7 @@ Shader::Shader(const char* vertPath, const char* fragPath) {
     glGetShaderiv(vertID, GL_COMPILE_STATUS, &success);
     if (!success) {
         glGetShaderInfoLog(vertID, 512, NULL, infoLog);
-        std::cout << "failed to compile shader\n" << infoLog << std::endl;
+        std::cout << "failed to compile vertex shader\n" << infoLog << std::endl;
     }
 
     fragID = glCreateShader(GL_FRAGMENT_SHADER);
@@ -52,12 +54,33 @@ Shader::Shader(const char* vertPath, const char* fragPath) {
     glGetShaderiv(fragID, GL_COMPILE_STATUS, &success);
     if (!success) {
         glGetShaderInfoLog(fragID, 512, NULL, infoLog);
-        std::cout << "failed to compile shader\n" << infoLog << std::endl;
+        std::cout << "failed to compile fragment shader\n" << infoLog << std::endl;
     }
+
+    GLuint geomID;
+    if (geomPath != nullptr) {
+        const char* geomCode = tempGeomCode.c_str();
+
+        geomID = glCreateShader(GL_GEOMETRY_SHADER);
+        glShaderSource(geomID, 1, &geomCode, NULL);
+        glCompileShader(geomID);
+        
+        glGetShaderiv(geomID, GL_COMPILE_STATUS, &success);
+        if (!success) {
+            glGetShaderInfoLog(geomID, 512, NULL, infoLog);
+            std::cout << "failed to compile geometry shader\n" << infoLog << std::endl;
+        }
+    }
+
 
     ID = glCreateProgram();
     glAttachShader(ID, vertID);
     glAttachShader(ID, fragID);
+
+    if (geomPath != nullptr) {
+        glAttachShader(ID, geomID);
+    }
+
     glLinkProgram(ID);
 
     glGetProgramiv(ID, GL_LINK_STATUS, &success);
@@ -68,6 +91,7 @@ Shader::Shader(const char* vertPath, const char* fragPath) {
 
     glDeleteShader(vertID);
     glDeleteShader(fragID);
+    if (geomPath != nullptr) glDeleteShader(geomID);
 }
 
 void Shader::use() {
