@@ -254,7 +254,8 @@ void renderGame() {
     //shader->setVec3("dirLight.diffuse", 0.8f, 0.8f, 0.8f);
 
     // set the point light
-    glm::vec3 lightPos = glm::vec3(2.0, 1.0, 2.0);;
+    glm::vec3 lightPos = glm::vec3(1.0, 1.0, 2.0);;
+    //glm::vec3 lightPos = g_gameState.player->position;
 
 
     //shader->setVec3("pointLights[1].position", 5.0f, 1.0f, 5.0f);

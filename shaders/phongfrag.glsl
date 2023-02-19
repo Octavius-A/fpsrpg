@@ -39,14 +39,14 @@ uniform vec3 viewPos;
 uniform Material material;
 uniform float far_plane;
 
-vec3 gridSamplingDisk[20] = vec3[]
-(
-    vec3(1, 1,  1), vec3( 1, -1,  1), vec3(-1, -1,  1), vec3(-1, 1,  1),
-    vec3(1, 1, -1), vec3( 1, -1, -1), vec3(-1, -1, -1), vec3(-1, 1, -1),
-    vec3(1, 1,  0), vec3( 1, -1,  0), vec3(-1, -1,  0), vec3(-1, 1,  0),
-    vec3(1, 0,  1), vec3(-1,  0,  1), vec3( 1,  0, -1), vec3(-1, 0, -1),
-    vec3(0, 1,  1), vec3( 0, -1,  1), vec3( 0, -1, -1), vec3( 0, 1, -1)
-);
+// vec3 gridSamplingDisk[20] = vec3[]
+// (
+//     vec3(1, 1,  1), vec3( 1, -1,  1), vec3(-1, -1,  1), vec3(-1, 1,  1),
+//     vec3(1, 1, -1), vec3( 1, -1, -1), vec3(-1, -1, -1), vec3(-1, 1, -1),
+//     vec3(1, 1,  0), vec3( 1, -1,  0), vec3(-1, -1,  0), vec3(-1, 1,  0),
+//     vec3(1, 0,  1), vec3(-1,  0,  1), vec3( 1,  0, -1), vec3(-1, 0, -1),
+//     vec3(0, 1,  1), vec3( 0, -1,  1), vec3( 0, -1, -1), vec3( 0, 1, -1)
+// );
 
 
 vec4 calcDirLight(DirLight light, vec3 normal, vec3 viewDir);
@@ -59,11 +59,12 @@ void main()
     vec3 norm = normalize(Normal);
     vec3 viewDir = normalize(viewPos - FragPos);
  
-    float shadow = calcShadow(pointLights[0], FragPos);
+    
 
     // calculate point light
     vec4 result = vec4(0.0f);
     for (int i = 0; i < pointLightCount; i++) {
+        float shadow = calcShadow(pointLights[0], FragPos);
         result += calcPointLight(pointLights[i], norm, viewDir, shadow);
     }
 
@@ -84,7 +85,7 @@ vec4 calcPointLight(PointLight light, vec3 normal, vec3 viewDir, float shadow) {
     ambient  *= attenuation;  
     diffuse   *= attenuation;
         
-    vec3 result = (ambient + (1.0 - shadow)) + diffuse;
+    vec3 result = (ambient + (1.0 - shadow)) * diffuse;
     vec4 final = vec4(result, tx.a);
     return final;
 }

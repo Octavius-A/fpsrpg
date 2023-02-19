@@ -42,10 +42,10 @@ void Mesh::initMesh() {
 
 void Mesh::draw(Shader& shader, unsigned int depthCubemap, bool depth) {
 
-
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, texture);
     if (depth) {
-        glActiveTexture(GL_TEXTURE0);
-        glBindTexture(GL_TEXTURE_2D, texture);
+
 
         glActiveTexture(GL_TEXTURE1);
         glBindTexture(GL_TEXTURE_CUBE_MAP, depthCubemap);
