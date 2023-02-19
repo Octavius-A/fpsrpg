@@ -26,6 +26,7 @@ SDL_Surface* g_guiSurface = NULL;
 SDL_Window* g_window = NULL;
 SDL_GLContext g_context;
 Shader* shader = NULL;
+Shader* depthShader = NULL;
 
 std::map<unsigned int, GLuint> textureIdMap;
 std::unordered_map<unsigned int, Model*> modelBank;
@@ -46,10 +47,18 @@ static constexpr float c_minPitch = -89.0f;
 
 static const float FOV = 80.0f;
 
+
+unsigned int depthCubemap;
+unsigned int depthMapFBO;
+const unsigned int shadowWidth = 1024;
+const unsigned int shadowHeight = 1024;
+
+
+void renderEnvironment(Shader* _shader, bool depth);
+
 bool initWindow(const char* windowTitle ) {
 
 	SDL_Init(SDL_INIT_EVERYTHING);
-	IMG_Init(IMG_INIT_PNG);
 
 	g_window = SDL_CreateWindow(windowTitle, SDL_WINDOWPOS_UNDEFINED,
 		SDL_WINDOWPOS_UNDEFINED, SCREEN_WIDTH, SCREEN_HEIGHT, SDL_WINDOW_OPENGL);
@@ -58,12 +67,15 @@ bool initWindow(const char* windowTitle ) {
 		std::cout << "FAILED TO INIT WINDOW" << std::endl;
 		return false;
 	}
-
+    
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
 	SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
 	SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 3);
-	SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
+	
 
 	g_context = SDL_GL_CreateContext(g_window);
+    SDL_GL_MakeCurrent(g_window, g_context);
+
 	
 	if (!gladLoadGLLoader((GLADloadproc)SDL_GL_GetProcAddress)) {
 		std::cout << "FAILED TO INIT GLAD" << std::endl;
@@ -76,10 +88,19 @@ bool initWindow(const char* windowTitle ) {
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableSetMousePos;
     ImGui::StyleColorsDark();
     ImGui_ImplSDL2_InitForOpenGL(g_window, g_context);
-    ImGui_ImplOpenGL3_Init("#version 330");
+    ImGui_ImplOpenGL3_Init("#version 330 core");
     
     SDL_SetRelativeMouseMode(SDL_TRUE);
     SDL_CaptureMouse(SDL_TRUE);
+
+
+    std::cout << glGetString(GL_SHADING_LANGUAGE_VERSION) << std::endl;
+    std::cout <<  glGetString(GL_VERSION) << std::endl;
+    int major, minor;
+    SDL_GL_GetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, &major);
+    SDL_GL_GetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, &minor);
+    printf("OpenGL version: %d.%d\n", major, minor);
+
 	return true;
 }
 
@@ -106,14 +127,37 @@ void initRendering() {
     glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
     //glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
+    std::cout << "construct shader 1" << std::endl;
     shader = new Shader("shaders/phongvert.glsl", "shaders/phongfrag.glsl");
+    std::cout << "construct shader 2" << std::endl;
+    depthShader = new Shader("shaders/depthVert.glsl", "shaders/depthFrag.glsl", "shaders/depthGeom.glsl");
 
-        
+    
+    glGenFramebuffers(1, &depthMapFBO);
 
+    glGenTextures(1, &depthCubemap);
+
+    glBindTexture(GL_TEXTURE_CUBE_MAP, depthCubemap);
+    for (int i = 0; i < 6; ++i) {
+        glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 0, GL_DEPTH_COMPONENT, shadowWidth, shadowHeight,
+            0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
+    }
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
+
+    glBindFramebuffer(GL_FRAMEBUFFER, depthMapFBO);
+    glFramebufferTexture(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, depthCubemap, 0);
+    glDrawBuffer(GL_NONE);
+    glReadBuffer(GL_NONE);
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
 }
 
 void exitRendering() {
     delete shader;
+    delete depthShader;
     glDeleteVertexArrays(0, &VAO);
     glDeleteBuffers(1, &VBO);
     SDL_FreeSurface(g_guiSurface);
@@ -203,6 +247,65 @@ void renderGame() {
     glCullFace(GL_BACK);
 
 
+
+    //// Set the directional light
+    //shader->setVec3("dirLight.direction", -0.3f, -1.0f, -1.0f);
+    //shader->setVec3("dirLight.ambient", 0.5f, 0.5f, 0.5f);
+    //shader->setVec3("dirLight.diffuse", 0.8f, 0.8f, 0.8f);
+
+    // set the point light
+    glm::vec3 lightPos = glm::vec3(2.0, 1.0, 2.0);;
+
+
+    //shader->setVec3("pointLights[1].position", 5.0f, 1.0f, 5.0f);
+    //shader->setVec3("pointLights[1].ambient", 0.0f, 0.0f, 0.0f);
+    //shader->setVec3("pointLights[1].diffuse", 0.5f, 0.5f, 0.5f);
+
+    //shader->setFloat("pointLights[1].constant", 1.0f);
+    //shader->setFloat("pointLights[1].linear", 0.09f);
+    //shader->setFloat("pointLights[1].quadratic", 0.032f);
+
+
+    // Setup depth cubemap transformation matricies
+
+    float aspect = (float)shadowWidth / (float)shadowHeight;
+    float near = 1.0f;
+    float far = 25.0f;
+    glm::mat4 shadowProjection = glm::perspective(glm::radians(90.0f), aspect, near, far);
+
+    // just change this to an array since its always 6;
+    glm::mat4 shadowTransforms[6];
+    shadowTransforms[0] = shadowProjection * glm::lookAt(lightPos, lightPos + glm::vec3(1.0f, 0.0f, 0.0f), glm::vec3(0.0f, -1.0f, 0.0f));
+    shadowTransforms[1] = shadowProjection * glm::lookAt(lightPos, lightPos + glm::vec3(-1.0f, 0.0f, 0.0f), glm::vec3(0.0f, -1.0f, 0.0f));
+    shadowTransforms[2] = shadowProjection * glm::lookAt(lightPos, lightPos + glm::vec3(0.0f, 1.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+    shadowTransforms[3] = shadowProjection * glm::lookAt(lightPos, lightPos + glm::vec3(0.0f, -1.0f, 0.0f), glm::vec3(0.0f, 0.0f, -1.0f));
+    shadowTransforms[4] = shadowProjection * glm::lookAt(lightPos, lightPos + glm::vec3(0.0f, 0.0f, 1.0f), glm::vec3(0.0f, -1.0f, 0.0f));
+    shadowTransforms[5] = shadowProjection * glm::lookAt(lightPos, lightPos + glm::vec3(0.0f, 0.0f, -1.0f), glm::vec3(0.0f, -1.0f, 0.0f));
+
+    // render the scene to the depth cubemap
+
+    shader->use();
+    shader->setInt("material.diffuse", 0);
+    shader->setInt("depthMap", 1);
+
+    glViewport(0, 0, shadowWidth, shadowHeight);
+    glBindFramebuffer(GL_FRAMEBUFFER, depthMapFBO);
+    glClear(GL_DEPTH_BUFFER_BIT);
+    depthShader->use();
+    for (int i = 0; i < 6; ++i) {
+        depthShader->setMat4("shadowMatrices[" + std::to_string(i) + "]", shadowTransforms[i]);
+    }
+    depthShader->setFloat("far_plane", far);
+    depthShader->setVec3("lightPos", lightPos);
+    renderEnvironment(depthShader, false);
+    
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+    // render scene
+    glViewport(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+
     shader->use();
 
     cameraFront = g_gameState.player->direction;
@@ -215,15 +318,10 @@ void renderGame() {
     shader->setMat4("projection", projection);
     shader->setMat4("view", view);
     shader->setVec3("viewPos", finalCameraPos);
+    shader->setFloat("far_plane", far);
 
-    //// Set the directional light
-    //shader->setVec3("dirLight.direction", -0.3f, -1.0f, -1.0f);
-    //shader->setVec3("dirLight.ambient", 0.5f, 0.5f, 0.5f);
-    //shader->setVec3("dirLight.diffuse", 0.8f, 0.8f, 0.8f);
-
-    // set the point light
-    shader->setInt("pointLightCount", 2);
-    shader->setVec3("pointLights[0].position", 2.0f, 1.0f, 2.0f);
+    shader->setInt("pointLightCount", 1);
+    shader->setVec3("pointLights[0].position", lightPos);
     shader->setVec3("pointLights[0].ambient", 0.0f, 0.0f, 0.0f);
     shader->setVec3("pointLights[0].diffuse", 0.5f, 0.5f, 0.5f);
 
@@ -231,14 +329,46 @@ void renderGame() {
     shader->setFloat("pointLights[0].linear", 0.09f);
     shader->setFloat("pointLights[0].quadratic", 0.032f);
 
-    shader->setVec3("pointLights[1].position", 5.0f, 1.0f, 5.0f);
-    shader->setVec3("pointLights[1].ambient", 0.0f, 0.0f, 0.0f);
-    shader->setVec3("pointLights[1].diffuse", 0.5f, 0.5f, 0.5f);
+    renderEnvironment(shader, true);
 
-    shader->setFloat("pointLights[1].constant", 1.0f);
-    shader->setFloat("pointLights[1].linear", 0.09f);
-    shader->setFloat("pointLights[1].quadratic", 0.032f);
+    // render player viewmodel
 
+    //glClear(GL_DEPTH_BUFFER_BIT);
+    //glm::mat4 cubeCameraModel = glm::mat4(1.0);
+    //cubeCameraModel = glm::translate(cubeCameraModel, glm::vec3(0.16f, -0.12f, -0.25f));
+    //cubeCameraModel = glm::rotate(cubeCameraModel, glm::radians(90.0f), glm::vec3(1.0f, 0.0f, 0.0f));
+    //cubeCameraModel = glm::rotate(cubeCameraModel, glm::radians(90.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+    //cubeCameraModel = glm::rotate(cubeCameraModel, glm::radians(12.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+    
+
+    // Design idea: make this into a function that just returns a model matrix
+    // or takes a model matrix as input and some other params and returns a matrix
+    // then can be a function property of the equipped item - then specify different anims for different items?
+    // e.g. spear thrust
+    //if (g_gameState.player->isAttacking) {
+    //    float t = g_gameState.player->attackAnimTimer / g_gameState.player->attackAnimDuration;
+    //    float lerp1 = 0 * (1 - t) + 85.0f * t;
+    //    float lerp2 = 0 * (1 - t) + 30.0f * t;
+    //    float lerp3 = 0 * (1 - t) + 0.225f * t;
+    //    float lerp4 = 0 * (1 - t) + 0.05f * t;
+    //    cubeCameraModel = glm::rotate(cubeCameraModel, glm::radians(lerp1), glm::vec3(0.0f, 1.0f, 0.0f));
+    //    cubeCameraModel = glm::rotate(cubeCameraModel, glm::radians(lerp2), glm::vec3(1.0f, 0.0f, 0.0f));
+    //    cubeCameraModel = glm::translate(cubeCameraModel, glm::vec3(0.0f, lerp3, 0.0f));
+    //    cubeCameraModel = glm::translate(cubeCameraModel, glm::vec3(-lerp4, 0.0f, 0.0f));
+    //}
+
+    //shader->setMat4("view", view);
+    //shader->setMat4("model", glm::inverse(view)* cubeCameraModel);
+    //modelBank[g_gameState.player->equipped->modelId]->draw(*shader, depthCubemap, true);
+  
+    renderGUI();
+    ImGui::Render();
+    ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+
+    SDL_GL_SwapWindow(g_window);
+}
+
+void renderEnvironment(Shader* _shader, bool depth) {
 
     // Render the tiles
     int tilesOnScreenX = 50;
@@ -246,7 +376,7 @@ void renderGame() {
 
 
     glFrontFace(GL_CCW);
-    glDisable(GL_CULL_FACE);
+    glDisable(GL_CULL_FACE); // ?
 
     for (int y = g_gameState.player->position.z - (tilesOnScreenY / 2); y < g_gameState.player->position.z + (tilesOnScreenY / 2); ++y) {
         for (int x = g_gameState.player->position.x - (tilesOnScreenX / 2); x < g_gameState.player->position.x + (tilesOnScreenX / 2); ++x) {
@@ -264,13 +394,13 @@ void renderGame() {
                         //model = glm::translate(model, position);
                         //shader->setMat4("model", model);
                         //glDrawArrays(GL_TRIANGLES, cubeTop.meshStart, 6);
-                        
+
                         glm::vec3 position = glm::vec3((float)x, (float)0.5f, (float)y);
                         glm::mat4 model = glm::mat4(1.0f);
                         model = glm::translate(model, position);
                         /*model = glm::rotate(model, angel, axis);*/
-                        shader->setMat4("model", model);
-                        modelBank[100]->draw(*shader);
+                        _shader->setMat4("model", model);
+                        modelBank[100]->draw(*_shader, depthCubemap, depth);
                     }
                     // render the wall
                     if (cell.wallId != 0) {
@@ -300,58 +430,56 @@ void renderGame() {
                             glm::mat4 model = glm::mat4(1.0f);
                             model = glm::translate(model, position);
                             model = glm::rotate(model, glm::radians(90.0f), glm::vec3(0.0f, 1.0f, 0.0f));
-                            shader->setMat4("model", model);
-                            modelBank[101]->draw(*shader);
+                            _shader->setMat4("model", model);
+                            modelBank[101]->draw(*_shader, depthCubemap, depth);
                         }
                         if (drawFront) {
                             glm::vec3 position = glm::vec3((float)x, (float)0.5f, (float)y + 0.5f);
                             glm::mat4 model = glm::mat4(1.0f);
                             model = glm::translate(model, position);
                             model = glm::rotate(model, glm::radians(180.0f), glm::vec3(0.0f, 1.0f, 0.0f));
-                            shader->setMat4("model", model);
-                            modelBank[101]->draw(*shader);
+                            _shader->setMat4("model", model);
+                            modelBank[101]->draw(*_shader, depthCubemap, depth);
                         }
                         if (drawRight) {
                             glm::vec3 position = glm::vec3((float)x + 0.5, (float)0.5f, (float)y);
                             glm::mat4 model = glm::mat4(1.0f);
                             model = glm::translate(model, position);
                             model = glm::rotate(model, glm::radians(-90.0f), glm::vec3(0.0f, 1.0f, 0.0f));
-                            shader->setMat4("model", model);
-                            modelBank[101]->draw(*shader);
-                            
+                            _shader->setMat4("model", model);
+                            modelBank[101]->draw(*_shader, depthCubemap, depth);
+
                         }
                         if (drawBack) {
-                            glm::vec3 position = glm::vec3((float)x, (float)0.5f, (float)y-0.5f);
+                            glm::vec3 position = glm::vec3((float)x, (float)0.5f, (float)y - 0.5f);
                             glm::mat4 model = glm::mat4(1.0f);
                             model = glm::translate(model, position);
-                            shader->setMat4("model", model);
-                            modelBank[101]->draw(*shader);
+                            _shader->setMat4("model", model);
+                            modelBank[101]->draw(*_shader, depthCubemap, depth);
                         }
                     }
 
                     if (cell.ceilingId != 0) {
-                    //    glActiveTexture(GL_TEXTURE0);
-                    //    glBindTexture(GL_TEXTURE_2D, textureIdMap[cell.ceilingId]);
-                    //    shader->setInt("material.diffuse", 0);
+                        //    glActiveTexture(GL_TEXTURE0);
+                        //    glBindTexture(GL_TEXTURE_2D, textureIdMap[cell.ceilingId]);
+                        //    shader->setInt("material.diffuse", 0);
 
-                    //    glm::vec3 position = glm::vec3((float)x, (float)2, (float)y);
-                    //    glm::mat4 model = glm::mat4(1.0f);
-                    //    model = glm::translate(model, position);
-                    //    shader->setMat4("model", model);
-                    //    glDrawArrays(GL_TRIANGLES, cubeBottom.meshStart, 6);
+                        //    glm::vec3 position = glm::vec3((float)x, (float)2, (float)y);
+                        //    glm::mat4 model = glm::mat4(1.0f);
+                        //    model = glm::translate(model, position);
+                        //    shader->setMat4("model", model);
+                        //    glDrawArrays(GL_TRIANGLES, cubeBottom.meshStart, 6);
                         glm::vec3 position = glm::vec3((float)x, (float)0.5f, (float)y);
                         glm::mat4 model = glm::mat4(1.0f);
                         model = glm::translate(model, position);
                         /*model = glm::rotate(model, angel, axis);*/
-                        shader->setMat4("model", model);
-                        modelBank[102]->draw(*shader);
+                        _shader->setMat4("model", model);
+                        modelBank[102]->draw(*_shader, depthCubemap, depth);
                     }
-                }            
+                }
             }
         }
     }
-
-
 
     // render 3d entities
     for (auto entity3d : g_gameState.entityList) {
@@ -359,43 +487,7 @@ void renderGame() {
         glm::mat4 model = glm::mat4(1.0f);
         model = glm::translate(model, position);
         /*model = glm::rotate(model, angel, axis);*/
-        shader->setMat4("model", model);
-        modelBank[entity3d->modelId]->draw(*shader);
+        _shader->setMat4("model", model);
+        modelBank[entity3d->modelId]->draw(*_shader, depthCubemap, depth);
     }
-
-    // render player viewmodel
-
-    glClear(GL_DEPTH_BUFFER_BIT);
-    glm::mat4 cubeCameraModel = glm::mat4(1.0);
-    cubeCameraModel = glm::translate(cubeCameraModel, glm::vec3(0.16f, -0.12f, -0.25f));
-    cubeCameraModel = glm::rotate(cubeCameraModel, glm::radians(90.0f), glm::vec3(1.0f, 0.0f, 0.0f));
-    cubeCameraModel = glm::rotate(cubeCameraModel, glm::radians(90.0f), glm::vec3(0.0f, 0.0f, 1.0f));
-    cubeCameraModel = glm::rotate(cubeCameraModel, glm::radians(12.0f), glm::vec3(0.0f, 1.0f, 0.0f));
-    
-
-    // Design idea: make this into a function that just returns a model matrix
-    // or takes a model matrix as input and some other params and returns a matrix
-    // then can be a function property of the equipped item - then specify different anims for different items?
-    // e.g. spear thrust
-    if (g_gameState.player->isAttacking) {
-        float t = g_gameState.player->attackAnimTimer / g_gameState.player->attackAnimDuration;
-        float lerp1 = 0 * (1 - t) + 85.0f * t;
-        float lerp2 = 0 * (1 - t) + 30.0f * t;
-        float lerp3 = 0 * (1 - t) + 0.225f * t;
-        float lerp4 = 0 * (1 - t) + 0.05f * t;
-        cubeCameraModel = glm::rotate(cubeCameraModel, glm::radians(lerp1), glm::vec3(0.0f, 1.0f, 0.0f));
-        cubeCameraModel = glm::rotate(cubeCameraModel, glm::radians(lerp2), glm::vec3(1.0f, 0.0f, 0.0f));
-        cubeCameraModel = glm::translate(cubeCameraModel, glm::vec3(0.0f, lerp3, 0.0f));
-        cubeCameraModel = glm::translate(cubeCameraModel, glm::vec3(-lerp4, 0.0f, 0.0f));
-    }
-
-    shader->setMat4("view", view);
-    shader->setMat4("model", glm::inverse(view)* cubeCameraModel);
-    modelBank[g_gameState.player->equipped->modelId]->draw(*shader);
-  
-    renderGUI();
-    ImGui::Render();
-    ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
-
-    SDL_GL_SwapWindow(g_window);
 }

@@ -40,11 +40,19 @@ void Mesh::initMesh() {
     glBindVertexArray(0);
 }
 
-void Mesh::draw(Shader& shader) {
-    glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, texture);
+void Mesh::draw(Shader& shader, unsigned int depthCubemap, bool depth) {
 
-    shader.setInt("material.diffuse", 0);
+
+    if (depth) {
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, texture);
+
+        glActiveTexture(GL_TEXTURE1);
+        glBindTexture(GL_TEXTURE_CUBE_MAP, depthCubemap);
+
+    }
+
+    
 
     glBindVertexArray(VAO);
     glDrawElements(GL_TRIANGLES, static_cast<unsigned int>(indices.size()), GL_UNSIGNED_INT, 0);
@@ -55,9 +63,9 @@ Model::Model(const char* path) {
     loadModel(path);
 }
 
-void Model::draw(Shader& shader) {
+void Model::draw(Shader& shader, unsigned int depthCubemap, bool depth) {
     for (uint32_t i = 0; i < meshes.size(); ++i) {
-        meshes[i].draw(shader);
+        meshes[i].draw(shader, depthCubemap, depth);
     }
 }
 

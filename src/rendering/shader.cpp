@@ -6,7 +6,6 @@ std::string loadShader(const char* path, std::string* out) {
     std::ifstream shaderFile;
 
     shaderFile.exceptions(std::ifstream::failbit | std::ifstream::badbit);
-
     try {
         shaderFile.open(path);
         std::stringstream shaderStream;
@@ -28,14 +27,16 @@ Shader::Shader(const char* vertPath, const char* fragPath, const char* geomPath)
     std::string tempGeomCode;
     loadShader(vertPath, &tempVertCode);
     loadShader(fragPath, &tempFragCode);
-    loadShader(fragPath, &tempGeomCode);
+    if (geomPath != nullptr) {
+        loadShader(geomPath, &tempGeomCode);
+    }
 
     const char* vertCode = tempVertCode.c_str();
     const char* fragCode = tempFragCode.c_str();
 
     GLuint vertID, fragID;
     int success;
-    char infoLog[512];
+    char infoLog[1024];
 
     vertID = glCreateShader(GL_VERTEX_SHADER);
     glShaderSource(vertID, 1, &vertCode, NULL);
@@ -43,7 +44,7 @@ Shader::Shader(const char* vertPath, const char* fragPath, const char* geomPath)
 
     glGetShaderiv(vertID, GL_COMPILE_STATUS, &success);
     if (!success) {
-        glGetShaderInfoLog(vertID, 512, NULL, infoLog);
+        glGetShaderInfoLog(vertID, 1024, NULL, infoLog);
         std::cout << "failed to compile vertex shader\n" << infoLog << std::endl;
     }
 
@@ -53,7 +54,7 @@ Shader::Shader(const char* vertPath, const char* fragPath, const char* geomPath)
 
     glGetShaderiv(fragID, GL_COMPILE_STATUS, &success);
     if (!success) {
-        glGetShaderInfoLog(fragID, 512, NULL, infoLog);
+        glGetShaderInfoLog(fragID, 1024, NULL, infoLog);
         std::cout << "failed to compile fragment shader\n" << infoLog << std::endl;
     }
 
@@ -67,7 +68,7 @@ Shader::Shader(const char* vertPath, const char* fragPath, const char* geomPath)
         
         glGetShaderiv(geomID, GL_COMPILE_STATUS, &success);
         if (!success) {
-            glGetShaderInfoLog(geomID, 512, NULL, infoLog);
+            glGetShaderInfoLog(geomID, 1024, NULL, infoLog);
             std::cout << "failed to compile geometry shader\n" << infoLog << std::endl;
         }
     }
@@ -85,7 +86,7 @@ Shader::Shader(const char* vertPath, const char* fragPath, const char* geomPath)
 
     glGetProgramiv(ID, GL_LINK_STATUS, &success);
     if (!success) {
-        glGetProgramInfoLog(ID, 512, NULL, infoLog);
+        glGetProgramInfoLog(ID, 1024, NULL, infoLog);
         std::cout << " failed to link program\n" << infoLog << std::endl;
     }
 
