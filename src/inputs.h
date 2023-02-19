@@ -21,6 +21,7 @@ void handleInputs() {
 			case SDLK_s: g_inputState.s = true; break;
 			case SDLK_d: g_inputState.d = true; break;
 			case SDLK_e: g_inputState.e = true; break;
+			case SDLK_F3: g_inputState.f3 = true; break;
 			default: break;
 			} break;
 		case SDL_KEYUP:
@@ -30,6 +31,7 @@ void handleInputs() {
 			case SDLK_s: g_inputState.s = false; break;
 			case SDLK_d: g_inputState.d = false; break;
 			case SDLK_e: g_inputState.e = false; break;
+			case SDLK_F3: g_inputState.f3 = false; break;
 			default: break;
 			}
 		case SDL_MOUSEBUTTONDOWN:

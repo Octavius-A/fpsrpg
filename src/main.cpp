@@ -46,6 +46,15 @@ int main(int argc, char* args[]) {
 			SDL_SetRelativeMouseMode(SDL_TRUE);
 			SDL_CaptureMouse(SDL_TRUE);
 		}
+
+		if (g_inputState.f3 && g_gameState.showDebug == false) {
+			g_gameState.showDebug = true;
+			g_inputState.f3 = false;
+		}
+		else if (g_gameState.showDebug && g_inputState.f3) {
+			g_gameState.showDebug = false;
+			g_inputState.f3 = false;
+		}
 		
 		// Don't update the world if the inventory screen  is open
 		if (g_gameState.inventoryMode == false) {

@@ -4,7 +4,9 @@
 void renderPlayerInventory();
 
 void renderGUI() {
-	debugWindow();
+	if (g_gameState.showDebug) {
+		debugWindow();
+	}
 
 	if (g_gameState.inventoryMode) {
 		renderPlayerInventory();

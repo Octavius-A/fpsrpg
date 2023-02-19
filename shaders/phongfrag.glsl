@@ -17,6 +17,17 @@ struct DirLight {   // Directional light e.g the sun
 uniform DirLight dirLight;
 
 
+struct PointLight {
+    vec3 position;
+    vec3 ambient;
+    vec3 diffuse;
+    vec3 specular;
+    float constant;
+    float linear;
+    float quadratic;
+};
+uniform PointLight pointLight;
+
 in vec3 Normal;
 in vec3 FragPos;
 in vec2 TexCoords;
@@ -25,17 +36,37 @@ uniform vec3 viewPos;
 uniform Material material;
 
 vec4 calcDirLight(DirLight light, vec3 normal, vec3 viewDir);
+vec4 calcPointLight(PointLight light, vec3 normal, vec3 viewDir);
 
 void main()
 {
     // properties
     vec3 norm = normalize(Normal);
     vec3 viewDir = normalize(viewPos - FragPos);
-
-    // calculate directional light
-    vec4 result = calcDirLight(dirLight, norm, viewDir);
+ 
+    // calculate point light
+    vec4 result = calcPointLight(pointLight, norm, viewDir);
 
     FragColor = result;
+}
+
+vec4 calcPointLight(PointLight light, vec3 normal, vec3 viewDir) {
+    vec4 tx = texture(material.diffuse, TexCoords).rgba;
+    vec3 ambient = light.ambient * texture(material.diffuse, TexCoords).rgb;
+    
+    vec3 lightDir = normalize(light.position - FragPos);
+    float diff = max(dot(normal, lightDir), 0.0);
+    vec3 diffuse = light.diffuse * diff * texture(material.diffuse, TexCoords).rgb;  
+    
+    float distance    = length(light.position - FragPos);
+    float attenuation = 1.0 / (light.constant + light.linear * distance + light.quadratic * (distance * distance));    
+
+    ambient  *= attenuation;  
+    diffuse   *= attenuation;
+        
+    vec3 result = ambient + diffuse;
+    vec4 final = vec4(result, tx.a);
+    return final;
 }
 
 vec4 calcDirLight(DirLight light, vec3 normal, vec3 viewDir) {

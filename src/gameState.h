@@ -19,6 +19,7 @@ struct GameState {
 	float cameraFov;
 	float mouseSensitivity = 100.0f;
 	bool inventoryMode = false;
+	bool showDebug = false;
 
 	static constexpr int worldXMax = 100;
 	static constexpr int worldYMax = 100;
@@ -58,6 +59,7 @@ struct InputState {
 	bool s = false;
 	bool d = false;
 	bool e = false;
+	bool f3 = false;
 };
 
 extern InputState g_inputState;

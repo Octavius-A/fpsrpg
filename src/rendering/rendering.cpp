@@ -221,7 +221,16 @@ void renderGame() {
     shader->setVec3("dirLight.ambient", 0.5f, 0.5f, 0.5f);
     shader->setVec3("dirLight.diffuse", 0.8f, 0.8f, 0.8f);
 
-    
+    // set the point light
+    glm::vec3 lightPos(2.0f, 1.0f, 2.0f);
+    shader->setVec3("pointLight.position", lightPos);
+    shader->setVec3("pointLight.ambient", 0.0f, 0.0f, 0.0f);
+    shader->setVec3("pointLight.diffuse", 0.5f, 0.5f, 0.5f);
+
+    shader->setFloat("pointLight.constant", 1.0f);
+    shader->setFloat("pointLight.linear", 0.09f);
+    shader->setFloat("pointLight.quadratic", 0.032f);
+
 
     // Render the tiles
     int tilesOnScreenX = 50;
