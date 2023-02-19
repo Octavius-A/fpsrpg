@@ -216,20 +216,28 @@ void renderGame() {
     shader->setMat4("view", view);
     shader->setVec3("viewPos", finalCameraPos);
 
-    // Set the directional light
-    shader->setVec3("dirLight.direction", -0.3f, -1.0f, -1.0f);
-    shader->setVec3("dirLight.ambient", 0.5f, 0.5f, 0.5f);
-    shader->setVec3("dirLight.diffuse", 0.8f, 0.8f, 0.8f);
+    //// Set the directional light
+    //shader->setVec3("dirLight.direction", -0.3f, -1.0f, -1.0f);
+    //shader->setVec3("dirLight.ambient", 0.5f, 0.5f, 0.5f);
+    //shader->setVec3("dirLight.diffuse", 0.8f, 0.8f, 0.8f);
 
     // set the point light
-    glm::vec3 lightPos(2.0f, 1.0f, 2.0f);
-    shader->setVec3("pointLight.position", lightPos);
-    shader->setVec3("pointLight.ambient", 0.0f, 0.0f, 0.0f);
-    shader->setVec3("pointLight.diffuse", 0.5f, 0.5f, 0.5f);
+    shader->setInt("pointLightCount", 2);
+    shader->setVec3("pointLights[0].position", 2.0f, 1.0f, 2.0f);
+    shader->setVec3("pointLights[0].ambient", 0.0f, 0.0f, 0.0f);
+    shader->setVec3("pointLights[0].diffuse", 0.5f, 0.5f, 0.5f);
 
-    shader->setFloat("pointLight.constant", 1.0f);
-    shader->setFloat("pointLight.linear", 0.09f);
-    shader->setFloat("pointLight.quadratic", 0.032f);
+    shader->setFloat("pointLights[0].constant", 1.0f);
+    shader->setFloat("pointLights[0].linear", 0.09f);
+    shader->setFloat("pointLights[0].quadratic", 0.032f);
+
+    shader->setVec3("pointLights[1].position", 5.0f, 1.0f, 5.0f);
+    shader->setVec3("pointLights[1].ambient", 0.0f, 0.0f, 0.0f);
+    shader->setVec3("pointLights[1].diffuse", 0.5f, 0.5f, 0.5f);
+
+    shader->setFloat("pointLights[1].constant", 1.0f);
+    shader->setFloat("pointLights[1].linear", 0.09f);
+    shader->setFloat("pointLights[1].quadratic", 0.032f);
 
 
     // Render the tiles

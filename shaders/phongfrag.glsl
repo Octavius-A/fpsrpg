@@ -26,7 +26,9 @@ struct PointLight {
     float linear;
     float quadratic;
 };
-uniform PointLight pointLight;
+#define MAX_POINT_LIGHTS 10
+uniform PointLight pointLights[MAX_POINT_LIGHTS];
+uniform int pointLightCount;
 
 in vec3 Normal;
 in vec3 FragPos;
@@ -45,7 +47,10 @@ void main()
     vec3 viewDir = normalize(viewPos - FragPos);
  
     // calculate point light
-    vec4 result = calcPointLight(pointLight, norm, viewDir);
+    vec4 result = vec4(0.0f);
+    for (int i = 0; i < pointLightCount; i++) {
+        result += calcPointLight(pointLights[i], norm, viewDir);
+    }
 
     FragColor = result;
 }
