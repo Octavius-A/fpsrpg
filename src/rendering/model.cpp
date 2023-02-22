@@ -40,17 +40,11 @@ void Mesh::initMesh() {
     glBindVertexArray(0);
 }
 
-void Mesh::draw(Shader& shader, unsigned int depthCubemap, bool depth) {
+void Mesh::draw(Shader& shader) {
 
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, texture);
-    if (depth) {
 
-
-        glActiveTexture(GL_TEXTURE1);
-        glBindTexture(GL_TEXTURE_CUBE_MAP, depthCubemap);
-
-    }
 
     
 
@@ -63,9 +57,9 @@ Model::Model(const char* path) {
     loadModel(path);
 }
 
-void Model::draw(Shader& shader, unsigned int depthCubemap, bool depth) {
+void Model::draw(Shader& shader) {
     for (uint32_t i = 0; i < meshes.size(); ++i) {
-        meshes[i].draw(shader, depthCubemap, depth);
+        meshes[i].draw(shader);
     }
 }
 

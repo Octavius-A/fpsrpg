@@ -1,4 +1,4 @@
-#version 330 core
+#version 460 core
 out vec4 FragColor;
 
 struct Material {
@@ -7,7 +7,7 @@ struct Material {
     // float shininess;
 };
 
-uniform samplerCube depthMap;
+
 
 struct DirLight {   // Directional light e.g the sun
     vec3 direction;
@@ -30,6 +30,7 @@ struct PointLight {
 #define MAX_POINT_LIGHTS 10
 uniform PointLight pointLights[MAX_POINT_LIGHTS];
 uniform int pointLightCount;
+uniform samplerCube depthMaps[MAX_POINT_LIGHTS];
 
 in vec3 Normal;
 in vec3 FragPos;
@@ -51,7 +52,7 @@ uniform float far_plane;
 
 vec4 calcDirLight(DirLight light, vec3 normal, vec3 viewDir);
 vec4 calcPointLight(PointLight light, vec3 normal, vec3 viewDir, float shadow);
-float calcShadow(PointLight light, vec3 fragPos);
+float calcShadow(PointLight light, vec3 fragPos, int depthMapIndex);
 
 void main()
 {
@@ -64,7 +65,7 @@ void main()
     // calculate point light
     vec4 result = vec4(0.0f);
     for (int i = 0; i < pointLightCount; i++) {
-        float shadow = calcShadow(pointLights[0], FragPos);
+        float shadow = calcShadow(pointLights[i], FragPos, i);
         result += calcPointLight(pointLights[i], norm, viewDir, shadow);
     }
 
@@ -106,9 +107,9 @@ vec4 calcDirLight(DirLight light, vec3 normal, vec3 viewDir) {
     return final;
 }
 
-float calcShadow(PointLight light, vec3 fragPos) {
+float calcShadow(PointLight light, vec3 fragPos, int depthMapIndex) {
     vec3 fragToLight = fragPos - light.position;
-    float closestDepth = texture(depthMap, fragToLight).r;
+    float closestDepth = texture(depthMaps[depthMapIndex], fragToLight).r;
     closestDepth *= far_plane;
     float currentDepth = length(fragToLight);
     float bias = 0.05;

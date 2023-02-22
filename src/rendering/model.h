@@ -20,7 +20,7 @@ public:
 	unsigned int texture;
 
 	Mesh(std::vector<Vertex> vertices, std::vector<unsigned int> indices, unsigned int texture);
-	void draw(Shader& shader, unsigned int depthCubemap, bool depth);
+	void draw(Shader& shader);
 private:
 	unsigned int VAO, VBO, EBO;
 	
@@ -30,7 +30,7 @@ private:
 class Model {
 public:
 	Model(const char* path);
-	void draw(Shader& shader, unsigned int depthCubemap, bool depth);
+	void draw(Shader& shader);
 private:
 	std::vector<Mesh> meshes;
 	std::string directory;

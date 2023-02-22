@@ -48,13 +48,17 @@ static constexpr float c_minPitch = -89.0f;
 static const float FOV = 80.0f;
 
 
-unsigned int depthCubemap;
-unsigned int depthMapFBO;
-const unsigned int shadowWidth = 512;
-const unsigned int shadowHeight = 512;
+//unsigned int depthCubemap;
+//unsigned int depthMapFBO;
+const unsigned int shadowWidth = 1024;
+const unsigned int shadowHeight = 1024;
+
+constexpr unsigned int numLights = 2;
+unsigned int depthCubemapList[numLights];
+unsigned int depthMapFBOList[numLights];
 
 
-void renderEnvironment(Shader* _shader, bool depth);
+void renderEnvironment(Shader* _shader);
 
 bool initWindow(const char* windowTitle ) {
 
@@ -69,8 +73,8 @@ bool initWindow(const char* windowTitle ) {
 	}
     
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
-	SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
-	SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 3);
+	SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 4);
+	SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 6);
 	
 
 	g_context = SDL_GL_CreateContext(g_window);
@@ -132,27 +136,28 @@ void initRendering() {
     std::cout << "construct shader 2" << std::endl;
     depthShader = new Shader("shaders/depthVert.glsl", "shaders/depthFrag.glsl", "shaders/depthGeom.glsl");
 
-    
-    glGenFramebuffers(1, &depthMapFBO);
+    for (int i = 0; i < numLights; ++i) {
+        glGenFramebuffers(1, &depthMapFBOList[i]);
 
-    glGenTextures(1, &depthCubemap);
+        glGenTextures(1, &depthCubemapList[i]);
 
-    glBindTexture(GL_TEXTURE_CUBE_MAP, depthCubemap);
-    for (int i = 0; i < 6; ++i) {
-        glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 0, GL_DEPTH_COMPONENT, shadowWidth, shadowHeight,
-            0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
+        glBindTexture(GL_TEXTURE_CUBE_MAP, depthCubemapList[i]);
+        for (int i = 0; i < 6; ++i) {
+            glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 0, GL_DEPTH_COMPONENT, shadowWidth, shadowHeight,
+                0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
+        }
+        glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+        glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+        glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+        glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+        glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
+
+        glBindFramebuffer(GL_FRAMEBUFFER, depthMapFBOList[i]);
+        glFramebufferTexture(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, depthCubemapList[i], 0);
+        glDrawBuffer(GL_NONE);
+        glReadBuffer(GL_NONE);
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
     }
-    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
-
-    glBindFramebuffer(GL_FRAMEBUFFER, depthMapFBO);
-    glFramebufferTexture(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, depthCubemap, 0);
-    glDrawBuffer(GL_NONE);
-    glReadBuffer(GL_NONE);
-    glBindFramebuffer(GL_FRAMEBUFFER, 0);
 }
 
 void exitRendering() {
@@ -254,25 +259,27 @@ void renderGame() {
     //shader->setVec3("dirLight.diffuse", 0.8f, 0.8f, 0.8f);
 
     // set the point light
-    static float t = 0.0f;
-    static const float tinc = 0.00025f;
-    static bool dir = true;
-    if (dir) {
-        t += tinc;
-        if (t >= 1.0) {
-            dir = false;
-        }
-    }
-    else {
-        t -= tinc;
-        if (t <= 0.0) {
-            dir = true;
-        }
-    }
-    float lerp = 1.0 * (1 - t) + 3.0f * t;
-    glm::vec3 lightPos = glm::vec3(1.0, 1.0, lerp);
+    //static float t = 0.0f;
+    //static const float tinc = 0.00025f;
+    //static bool dir = true;
+    //if (dir) {
+    //    t += tinc;
+    //    if (t >= 1.0) {
+    //        dir = false;
+    //    }
+    //}
+    //else {
+    //    t -= tinc;
+    //    if (t <= 0.0) {
+    //        dir = true;
+    //    }
+    //}
+    //float lerp = 1.0 * (1 - t) + 3.0f * t;
     
     
+    glm::vec3 light1Pos = glm::vec3(1.0, 1.0, 1.0);
+    glm::vec3 light2Pos = glm::vec3(2.0, 1.0, 1.0);
+    glm::vec3 lightPositions[numLights] = { light1Pos, light2Pos };
     //glm::vec3 lightPos = g_gameState.player->position;
 
 
@@ -292,33 +299,35 @@ void renderGame() {
     float far = 25.0f;
     glm::mat4 shadowProjection = glm::perspective(glm::radians(90.0f), aspect, near, far);
 
-    // just change this to an array since its always 6;
-    glm::mat4 shadowTransforms[6];
-    shadowTransforms[0] = shadowProjection * glm::lookAt(lightPos, lightPos + glm::vec3(1.0f, 0.0f, 0.0f), glm::vec3(0.0f, -1.0f, 0.0f));
-    shadowTransforms[1] = shadowProjection * glm::lookAt(lightPos, lightPos + glm::vec3(-1.0f, 0.0f, 0.0f), glm::vec3(0.0f, -1.0f, 0.0f));
-    shadowTransforms[2] = shadowProjection * glm::lookAt(lightPos, lightPos + glm::vec3(0.0f, 1.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
-    shadowTransforms[3] = shadowProjection * glm::lookAt(lightPos, lightPos + glm::vec3(0.0f, -1.0f, 0.0f), glm::vec3(0.0f, 0.0f, -1.0f));
-    shadowTransforms[4] = shadowProjection * glm::lookAt(lightPos, lightPos + glm::vec3(0.0f, 0.0f, 1.0f), glm::vec3(0.0f, -1.0f, 0.0f));
-    shadowTransforms[5] = shadowProjection * glm::lookAt(lightPos, lightPos + glm::vec3(0.0f, 0.0f, -1.0f), glm::vec3(0.0f, -1.0f, 0.0f));
+    for (int i = 0; i < numLights; ++i) {
+        // just change this to an array since its always 6;
+        glm::mat4 shadowTransforms[6];
+        shadowTransforms[0] = shadowProjection * glm::lookAt(lightPositions[i], lightPositions[i] + glm::vec3(1.0f, 0.0f, 0.0f), glm::vec3(0.0f, -1.0f, 0.0f));
+        shadowTransforms[1] = shadowProjection * glm::lookAt(lightPositions[i], lightPositions[i] + glm::vec3(-1.0f, 0.0f, 0.0f), glm::vec3(0.0f, -1.0f, 0.0f));
+        shadowTransforms[2] = shadowProjection * glm::lookAt(lightPositions[i], lightPositions[i] + glm::vec3(0.0f, 1.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+        shadowTransforms[3] = shadowProjection * glm::lookAt(lightPositions[i], lightPositions[i] + glm::vec3(0.0f, -1.0f, 0.0f), glm::vec3(0.0f, 0.0f, -1.0f));
+        shadowTransforms[4] = shadowProjection * glm::lookAt(lightPositions[i], lightPositions[i] + glm::vec3(0.0f, 0.0f, 1.0f), glm::vec3(0.0f, -1.0f, 0.0f));
+        shadowTransforms[5] = shadowProjection * glm::lookAt(lightPositions[i], lightPositions[i] + glm::vec3(0.0f, 0.0f, -1.0f), glm::vec3(0.0f, -1.0f, 0.0f));
 
-    // render the scene to the depth cubemap
+        // render the scene to the depth cubemap
 
-    shader->use();
-    shader->setInt("material.diffuse", 0);
-    shader->setInt("depthMap", 1);
 
-    glViewport(0, 0, shadowWidth, shadowHeight);
-    glBindFramebuffer(GL_FRAMEBUFFER, depthMapFBO);
-    glClear(GL_DEPTH_BUFFER_BIT);
-    depthShader->use();
-    for (int i = 0; i < 6; ++i) {
-        depthShader->setMat4("shadowMatrices[" + std::to_string(i) + "]", shadowTransforms[i]);
+
+        glViewport(0, 0, shadowWidth, shadowHeight);
+        glBindFramebuffer(GL_FRAMEBUFFER, depthMapFBOList[i]);
+        glClear(GL_DEPTH_BUFFER_BIT);
+        depthShader->use();
+        for (int i = 0; i < 6; ++i) {
+            depthShader->setMat4("shadowMatrices[" + std::to_string(i) + "]", shadowTransforms[i]);
+        }
+        depthShader->setFloat("far_plane", far);
+        depthShader->setVec3("lightPos", lightPositions[i]);
+        glCullFace(GL_FRONT);
+        renderEnvironment(depthShader);
+        glCullFace(GL_BACK);
     }
-    depthShader->setFloat("far_plane", far);
-    depthShader->setVec3("lightPos", lightPos);
-    glCullFace(GL_FRONT);
-    renderEnvironment(depthShader, false);
-    glCullFace(GL_BACK);
+
+
 
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
@@ -341,16 +350,28 @@ void renderGame() {
     shader->setVec3("viewPos", finalCameraPos);
     shader->setFloat("far_plane", far);
 
-    shader->setInt("pointLightCount", 1);
-    shader->setVec3("pointLights[0].position", lightPos);
-    shader->setVec3("pointLights[0].ambient", 0.0f, 0.0f, 0.0f);
-    shader->setVec3("pointLights[0].diffuse", 0.5f, 0.5f, 0.5f);
+    shader->setInt("pointLightCount", numLights);
 
-    shader->setFloat("pointLights[0].constant", 1.0f);
-    shader->setFloat("pointLights[0].linear", 0.09f);
-    shader->setFloat("pointLights[0].quadratic", 0.032f);
+    for (int i = 0; i < numLights; ++i) {
+        shader->setVec3("pointLights[" + std::to_string(i) +  "].position", lightPositions[i]);
+        shader->setVec3("pointLights[" + std::to_string(i) + "].ambient", 0.0f, 0.0f, 0.0f);
+        shader->setVec3("pointLights[" + std::to_string(i) + "].diffuse", 0.5f, 0.5f, 0.5f);
 
-    renderEnvironment(shader, true);
+        shader->setFloat("pointLights[" + std::to_string(i) + "].constant", 1.0f);
+        shader->setFloat("pointLights[" + std::to_string(i) + "].linear", 0.09f);
+        shader->setFloat("pointLights[" + std::to_string(i) + "].quadratic", 0.032f);
+
+        shader->use();
+        
+        shader->setInt("depthMaps[" + std::to_string(i) + "]", i + 1);
+
+        glActiveTexture(GL_TEXTURE1 + i);
+        glBindTexture(GL_TEXTURE_CUBE_MAP, depthCubemapList[i]);
+        
+    }
+    shader->setInt("material.diffuse", 0);
+
+    renderEnvironment(shader);
 
     // render player viewmodel
 
@@ -380,7 +401,7 @@ void renderGame() {
 
     shader->setMat4("view", view);
     shader->setMat4("model", glm::inverse(view)* cubeCameraModel);
-    modelBank[g_gameState.player->equipped->modelId]->draw(*shader, depthCubemap, true);
+    modelBank[g_gameState.player->equipped->modelId]->draw(*shader);
   
     renderGUI();
     ImGui::Render();
@@ -389,7 +410,7 @@ void renderGame() {
     SDL_GL_SwapWindow(g_window);
 }
 
-void renderEnvironment(Shader* _shader, bool depth) {
+void renderEnvironment(Shader* _shader) {
 
     // Render the tiles
     int tilesOnScreenX = 50;
@@ -421,7 +442,7 @@ void renderEnvironment(Shader* _shader, bool depth) {
                         model = glm::translate(model, position);
                         /*model = glm::rotate(model, angel, axis);*/
                         _shader->setMat4("model", model);
-                        modelBank[100]->draw(*_shader, depthCubemap, depth);
+                        modelBank[100]->draw(*_shader);
                     }
                     // render the wall
                     if (cell.wallId != 0) {
@@ -452,7 +473,7 @@ void renderEnvironment(Shader* _shader, bool depth) {
                             model = glm::translate(model, position);
                             model = glm::rotate(model, glm::radians(90.0f), glm::vec3(0.0f, 1.0f, 0.0f));
                             _shader->setMat4("model", model);
-                            modelBank[101]->draw(*_shader, depthCubemap, depth);
+                            modelBank[101]->draw(*_shader);
                         }
                         if (drawFront) {
                             glm::vec3 position = glm::vec3((float)x, (float)0.5f, (float)y + 0.5f);
@@ -460,7 +481,7 @@ void renderEnvironment(Shader* _shader, bool depth) {
                             model = glm::translate(model, position);
                             model = glm::rotate(model, glm::radians(180.0f), glm::vec3(0.0f, 1.0f, 0.0f));
                             _shader->setMat4("model", model);
-                            modelBank[101]->draw(*_shader, depthCubemap, depth);
+                            modelBank[101]->draw(*_shader);
                         }
                         if (drawRight) {
                             glm::vec3 position = glm::vec3((float)x + 0.5, (float)0.5f, (float)y);
@@ -468,7 +489,7 @@ void renderEnvironment(Shader* _shader, bool depth) {
                             model = glm::translate(model, position);
                             model = glm::rotate(model, glm::radians(-90.0f), glm::vec3(0.0f, 1.0f, 0.0f));
                             _shader->setMat4("model", model);
-                            modelBank[101]->draw(*_shader, depthCubemap, depth);
+                            modelBank[101]->draw(*_shader);
 
                         }
                         if (drawBack) {
@@ -476,7 +497,7 @@ void renderEnvironment(Shader* _shader, bool depth) {
                             glm::mat4 model = glm::mat4(1.0f);
                             model = glm::translate(model, position);
                             _shader->setMat4("model", model);
-                            modelBank[101]->draw(*_shader, depthCubemap, depth);
+                            modelBank[101]->draw(*_shader);
                         }
                     }
 
@@ -495,7 +516,7 @@ void renderEnvironment(Shader* _shader, bool depth) {
                         model = glm::translate(model, position);
                         /*model = glm::rotate(model, angel, axis);*/
                         _shader->setMat4("model", model);
-                        modelBank[102]->draw(*_shader, depthCubemap, depth);
+                        modelBank[102]->draw(*_shader);
                     }
                 }
             }
@@ -509,6 +530,6 @@ void renderEnvironment(Shader* _shader, bool depth) {
         model = glm::translate(model, position);
         /*model = glm::rotate(model, angel, axis);*/
         _shader->setMat4("model", model);
-        modelBank[entity3d->modelId]->draw(*_shader, depthCubemap, depth);
+        modelBank[entity3d->modelId]->draw(*_shader);
     }
 }
