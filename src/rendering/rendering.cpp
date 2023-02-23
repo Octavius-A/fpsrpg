@@ -70,18 +70,6 @@ constexpr int maxParticles = 500;
 Particle particles[maxParticles];
 unsigned int particleTextureId;
 
-float particle_quad[] = {
-    0.0f, 1.0f, 0.0f, 1.0f,
-    1.0f, 0.0f, 1.0f, 0.0f,
-    0.0f, 0.0f, 0.0f, 0.0f,
-
-    0.0f, 1.0f, 0.0f, 1.0f,
-    1.0f, 1.0f, 1.0f, 1.0f,
-    1.0f, 0.0f, 1.0f, 0.0f
-};
-unsigned int particleVAO;
-unsigned int particleVBO;
-
 float billboardQuad[] = {
     -0.5f, -0.5f, 0.0f,
      0.5f, -0.5f, 0.0f,
@@ -90,40 +78,66 @@ float billboardQuad[] = {
 };
 unsigned int billboardVAO;
 unsigned int billboardVBO;
-unsigned int billboardTexture;
 
 void renderEnvironment(Shader* _shader);
 
 void spawnParticle(Particle& particle, glm::vec3 position)
 {
-    float random = ((rand() % 100) - 50) / 10000.0f;
+    float random = ((rand() % 100) - 50) / 100.0f;
     float rColor = 0.5f + ((rand() % 100) / 100.0f);
-    particle.position = position + random;
-    std::cout << "spawning particle at " << particle.position.x << ", " << particle.position.y << ", " << particle.position.z << std::endl;
+    float randX = ((rand() % 100) - 50) / 100.0f;
+    float randY = ((rand() % 100) - 50) / 100.0f;
+    float randZ = ((rand() % 100) - 50) / 100.0f;
+    particle.position = glm::vec3(position.x + randX, position.y + randY, position.z + randZ);
     particle.color = glm::vec4(rColor, rColor, rColor, 1.0f);
     particle.life = 1.0f;
-    particle.velocity = glm::vec3(0.0f);
+    particle.velocity = glm::vec3(0.1f);
+}
+
+void spawnParticleSpherical(Particle& particle, glm::vec3 origin) {
+    float maxR = 0.1;
+    float r = ((rand() % 100) - 50) / 1000.0f;
+    float phi = glm::radians(((rand() % 3600) - 1800) / 10.0f);
+    float theta = glm::radians(((rand() % 3600) - 1800) / 10.0f);
+
+    float x = r * sin(theta) * cos(phi);
+    float y = r * sin(theta) * sin(phi);
+    float z = r * cos(theta);
+    particle.position = glm::vec3(origin.x + x, origin.y + y, origin.z + z);
+
+    float rColor = 0.5f + ((rand() % 100) / 100.0f);
+    particle.color = glm::vec4(rColor, rColor, rColor, 1.0f);
+    particle.life = 1.0f;
+    particle.velocity = glm::vec3(0.1f);
 }
 
 void updateParticles(double dTime) {
-    static const int maxNewParticlesPerFrame = 2;
-    int spawnedParticles = 0;
+    static const int maxNewParticlesPerFrame = 1;
+    int spawnedParticlesThisFrame = 0;
+    static int spawnedParticles = 0;
+    
     glm::vec3 particleSpawnPos = glm::vec3(2.0f, 1.0f, 1.0f);
 
     for (int i = 0; i < maxParticles; ++i) {
         Particle& p = particles[i];
         if (p.life <= 0.0f) {
-            if (spawnedParticles < maxNewParticlesPerFrame) {
-                // can spawn a particle
-                spawnParticle(p, particleSpawnPos);
-                spawnedParticles += 1;
+            if (spawnedParticles < maxParticles) {
+                if (spawnedParticlesThisFrame < maxNewParticlesPerFrame) {
+                    // can spawn a particle
+                    spawnParticleSpherical(p, particleSpawnPos);
+                    spawnedParticles += 1;
+                    spawnedParticlesThisFrame += 1;
+                }
+            }
+            else {
+                spawnedParticles -= 1;
             }
         }
         else {
             p.life -= dTime;
             if (p.life > 0.0f) {
-                p.position -= p.velocity * (float)dTime;
-                //p.color.a -= dTime * 0.5f; // reduce the alpha over time
+                p.position.y += p.velocity.y * (float)dTime;
+                p.color.a -= dTime * 0.5f; // reduce the alpha over time
             }
         }
     }
@@ -228,17 +242,8 @@ void initRendering() {
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
     }
 
-    particleTextureId = loadTexture("assets/textures/particle.png");
-    glGenVertexArrays(1, &particleVAO);
-    glGenBuffers(1, &particleVBO);
-    glBindVertexArray(particleVAO);
-    glBindBuffer(GL_ARRAY_BUFFER, particleVBO);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(particle_quad), particle_quad, GL_STATIC_DRAW);
-    glEnableVertexAttribArray(0);
-    glVertexAttribPointer(0, 4, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)0);
-    glBindVertexArray(0);
+    particleTextureId = loadTexture("assets/textures/fire_particle.png");
 
-    billboardTexture = loadTexture("assets/textures/particle.png");
     glGenVertexArrays(1, &billboardVAO);
     glGenBuffers(1, &billboardVBO);
     glBindVertexArray(billboardVAO);
@@ -328,7 +333,7 @@ void initModels(const char* path) {
 
 void renderGame() {
 
-    //updateParticles(g_gameState.dTime);
+    updateParticles(g_gameState.dTime);
 
     glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -466,21 +471,27 @@ void renderGame() {
     renderEnvironment(shader);
 
     // render test billboard
+    glDepthMask(GL_FALSE);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE);
     billboardShader->use();
     billboardShader->setMat4("view", view);
     billboardShader->setMat4("projection", projection);
     billboardShader->setVec3("CameraRight_worldspace", view[0][0], view[1][0], view[2][0]);
     billboardShader->setVec3("CameraUp_worldspace", view[0][1], view[1][1], view[2][1]);
-    billboardShader->setVec3("position", glm::vec3(1.0f, 0.5f, 1.0f));
-    billboardShader->setFloat("scale", 1.0f);
-    billboardShader->setInt("sprite", 0); // ?
+    billboardShader->setFloat("scale", 0.006f);
+    billboardShader->setInt("sprite", 0);
+
     glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, billboardTexture);
-
+    glBindTexture(GL_TEXTURE_2D, particleTextureId);
     glBindVertexArray(billboardVAO);
-    glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+    for (int i = 0; i < maxParticles; ++i) {
+        Particle& p = particles[i];
+        billboardShader->setVec3("position", p.position);
+        glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+    }
     glBindVertexArray(0);
-
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    glDepthMask(GL_TRUE);
     
     // render player viewmodel
     shader->use();
