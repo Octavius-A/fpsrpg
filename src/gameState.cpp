@@ -53,7 +53,8 @@ void updateGameState(double dTime) {
 		entity->update();
 	}
 
-	resolveCollisions2D();
+	// make this toggleable
+	//resolveCollisions2D();
 }
 
 

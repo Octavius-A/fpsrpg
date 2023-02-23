@@ -27,6 +27,8 @@ SDL_Window* g_window = NULL;
 SDL_GLContext g_context;
 Shader* shader = NULL;
 Shader* depthShader = NULL;
+Shader* particleShader = NULL;
+Shader* billboardShader = NULL;
 
 std::map<unsigned int, GLuint> textureIdMap;
 std::unordered_map<unsigned int, Model*> modelBank;
@@ -57,8 +59,75 @@ constexpr unsigned int numLights = 2;
 unsigned int depthCubemapList[numLights];
 unsigned int depthMapFBOList[numLights];
 
+struct Particle {
+    glm::vec3 position = glm::vec3(0.0f);
+    glm::vec3 velocity = glm::vec3(0.1f);
+    glm::vec4 color = glm::vec4(1.0f);
+    float life = 0.0f;
+};
+
+constexpr int maxParticles = 500;
+Particle particles[maxParticles];
+unsigned int particleTextureId;
+
+float particle_quad[] = {
+    0.0f, 1.0f, 0.0f, 1.0f,
+    1.0f, 0.0f, 1.0f, 0.0f,
+    0.0f, 0.0f, 0.0f, 0.0f,
+
+    0.0f, 1.0f, 0.0f, 1.0f,
+    1.0f, 1.0f, 1.0f, 1.0f,
+    1.0f, 0.0f, 1.0f, 0.0f
+};
+unsigned int particleVAO;
+unsigned int particleVBO;
+
+float billboardQuad[] = {
+    -0.5f, -0.5f, 0.0f,
+     0.5f, -0.5f, 0.0f,
+    -0.5f,  0.5f, 0.0f,
+     0.5f,  0.5f, 0.0f,
+};
+unsigned int billboardVAO;
+unsigned int billboardVBO;
+unsigned int billboardTexture;
 
 void renderEnvironment(Shader* _shader);
+
+void spawnParticle(Particle& particle, glm::vec3 position)
+{
+    float random = ((rand() % 100) - 50) / 10000.0f;
+    float rColor = 0.5f + ((rand() % 100) / 100.0f);
+    particle.position = position + random;
+    std::cout << "spawning particle at " << particle.position.x << ", " << particle.position.y << ", " << particle.position.z << std::endl;
+    particle.color = glm::vec4(rColor, rColor, rColor, 1.0f);
+    particle.life = 1.0f;
+    particle.velocity = glm::vec3(0.0f);
+}
+
+void updateParticles(double dTime) {
+    static const int maxNewParticlesPerFrame = 2;
+    int spawnedParticles = 0;
+    glm::vec3 particleSpawnPos = glm::vec3(2.0f, 1.0f, 1.0f);
+
+    for (int i = 0; i < maxParticles; ++i) {
+        Particle& p = particles[i];
+        if (p.life <= 0.0f) {
+            if (spawnedParticles < maxNewParticlesPerFrame) {
+                // can spawn a particle
+                spawnParticle(p, particleSpawnPos);
+                spawnedParticles += 1;
+            }
+        }
+        else {
+            p.life -= dTime;
+            if (p.life > 0.0f) {
+                p.position -= p.velocity * (float)dTime;
+                //p.color.a -= dTime * 0.5f; // reduce the alpha over time
+            }
+        }
+    }
+}
 
 bool initWindow(const char* windowTitle ) {
 
@@ -131,10 +200,10 @@ void initRendering() {
     glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
     //glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
-    std::cout << "construct shader 1" << std::endl;
     shader = new Shader("shaders/phongvert.glsl", "shaders/phongfrag.glsl");
-    std::cout << "construct shader 2" << std::endl;
     depthShader = new Shader("shaders/depthVert.glsl", "shaders/depthFrag.glsl", "shaders/depthGeom.glsl");
+    particleShader = new Shader("shaders/particleVert.glsl", "shaders/particleFrag.glsl");
+    billboardShader = new Shader("shaders/billboardVert.glsl", "shaders/billboardFrag.glsl");
 
     for (int i = 0; i < numLights; ++i) {
         glGenFramebuffers(1, &depthMapFBOList[i]);
@@ -158,6 +227,28 @@ void initRendering() {
         glReadBuffer(GL_NONE);
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
     }
+
+    particleTextureId = loadTexture("assets/textures/particle.png");
+    glGenVertexArrays(1, &particleVAO);
+    glGenBuffers(1, &particleVBO);
+    glBindVertexArray(particleVAO);
+    glBindBuffer(GL_ARRAY_BUFFER, particleVBO);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(particle_quad), particle_quad, GL_STATIC_DRAW);
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(0, 4, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)0);
+    glBindVertexArray(0);
+
+    billboardTexture = loadTexture("assets/textures/particle.png");
+    glGenVertexArrays(1, &billboardVAO);
+    glGenBuffers(1, &billboardVBO);
+    glBindVertexArray(billboardVAO);
+    glBindBuffer(GL_ARRAY_BUFFER, billboardVBO);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(billboardQuad), billboardQuad, GL_STATIC_DRAW);
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0); // should stride be 0?
+    glBindVertexArray(0);
+
+
 }
 
 void exitRendering() {
@@ -231,13 +322,14 @@ void initModels(const char* path) {
         std::filesystem::path p = modelData["model_path"];
         unsigned int modelId = modelData["id"];
         std::string path = modelData["model_path"];
-        //modelBank[modelId] = new Model(std::filesystem::absolute(p).generic_string().c_str());
         modelBank[modelId] = new Model(path.c_str());
     }
 }
 
 void renderGame() {
-    // glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
+
+    //updateParticles(g_gameState.dTime);
+
     glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
@@ -373,8 +465,25 @@ void renderGame() {
 
     renderEnvironment(shader);
 
-    // render player viewmodel
+    // render test billboard
+    billboardShader->use();
+    billboardShader->setMat4("view", view);
+    billboardShader->setMat4("projection", projection);
+    billboardShader->setVec3("CameraRight_worldspace", view[0][0], view[1][0], view[2][0]);
+    billboardShader->setVec3("CameraUp_worldspace", view[0][1], view[1][1], view[2][1]);
+    billboardShader->setVec3("position", glm::vec3(1.0f, 0.5f, 1.0f));
+    billboardShader->setFloat("scale", 1.0f);
+    billboardShader->setInt("sprite", 0); // ?
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, billboardTexture);
 
+    glBindVertexArray(billboardVAO);
+    glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+    glBindVertexArray(0);
+
+    
+    // render player viewmodel
+    shader->use();
     glClear(GL_DEPTH_BUFFER_BIT);
     glm::mat4 cubeCameraModel = glm::mat4(1.0);
     cubeCameraModel = glm::translate(cubeCameraModel, glm::vec3(0.16f, -0.12f, -0.25f));
@@ -402,7 +511,35 @@ void renderGame() {
     shader->setMat4("view", view);
     shader->setMat4("model", glm::inverse(view)* cubeCameraModel);
     modelBank[g_gameState.player->equipped->modelId]->draw(*shader);
-  
+
+
+    //glm::vec3 cameraPosition(glm::inverse(view)[3]); // Do i need to do this - can I just use the pos directly. print to check
+
+
+
+    //// Render particles?
+    //glBlendFunc(GL_SRC_ALPHA, GL_ONE);
+    //particleShader->use();
+    //particleShader->setMat4("view", view);
+    //particleShader->setMat4("projection", projection);
+    //
+    //for (int i = 0; i < maxParticles; ++i) {
+    //    Particle& p = particles[i];
+    //    if (p.life > 0.0f) {
+    //        particleShader->setVec3("offset", p.position);
+    //        particleShader->setVec4("color", p.color);
+    //        particleShader->setInt("sprite", 0);
+    //        glActiveTexture(GL_TEXTURE0);
+    //        glBindTexture(GL_TEXTURE_2D, particleTextureId);
+
+    //        glBindVertexArray(particleVAO);
+    //        glDrawArrays(GL_TRIANGLES, 0, 6);
+    //        glBindVertexArray(0);
+    //    }
+    //}
+    //glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+
     renderGUI();
     ImGui::Render();
     ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
