@@ -28,8 +28,9 @@ void initGame() {
 	spawnCollidable(-0.12, 0.12, -0.3, 0.3, spawnEntity(glm::vec3(3.0f, 0.5f, 3.0f), 4, "Wooden chest"));
 	spawnCollidable(-0.15, -0.1, -0.1, 0.1, spawnEntity(glm::vec3(1.0f, 0.5f, 1.0f), 5, "up ladder"));
 	spawnCollidable(-0.05, 0.05, -0.05, 0.05, spawnEntity(glm::vec3(2.0f, 0.5f, 2.0f), 7, "wooden support"));
-	Entity3D* shortsword = spawnEntity(glm::vec3(2.0f, 0.5f, 2.0f), 6, "short sword");
-	g_gameState.player->equipped = shortsword;
+	//Entity3D* shortsword = spawnEntity(, 6, "short sword");
+	// TODO: Consider how I'm handling this
+	g_gameState.player->equipped = new Entity3D(glm::vec3(2.0f, 0.5f, 2.0f), 6, "short sword");
 
 	Entity* sword = new Entity("Sword");
 	Entity* clothTunic = new Entity("Cloth tunic");

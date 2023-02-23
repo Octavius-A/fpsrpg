@@ -354,8 +354,8 @@ void renderGame() {
 
     for (int i = 0; i < numLights; ++i) {
         shader->setVec3("pointLights[" + std::to_string(i) +  "].position", lightPositions[i]);
-        shader->setVec3("pointLights[" + std::to_string(i) + "].ambient", 0.0f, 0.0f, 0.0f);
-        shader->setVec3("pointLights[" + std::to_string(i) + "].diffuse", 0.5f, 0.5f, 0.5f);
+        shader->setVec3("pointLights[" + std::to_string(i) + "].ambient", 0.1f, 0.1f, 0.1f);
+        shader->setVec3("pointLights[" + std::to_string(i) + "].diffuse", 0.6f, 0.4f, 0.2f);
 
         shader->setFloat("pointLights[" + std::to_string(i) + "].constant", 1.0f);
         shader->setFloat("pointLights[" + std::to_string(i) + "].linear", 0.09f);
