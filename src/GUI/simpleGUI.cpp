@@ -34,6 +34,10 @@ void debugWindow() {
 	int fps = g_gameState.fps;
 	ImGui::Text("fps: %d", fps);
 	
+	if (g_gameState.tcl) {
+		ImGui::Text("Collisions disabled");
+	}
+	
 	ImGui::End();
 }
 

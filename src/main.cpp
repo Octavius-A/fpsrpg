@@ -55,6 +55,15 @@ int main(int argc, char* args[]) {
 			g_gameState.showDebug = false;
 			g_inputState.f3 = false;
 		}
+
+		if (g_inputState.f4 && g_gameState.tcl == false) {
+			g_gameState.tcl = true;
+			g_inputState.f4 = false;
+		}
+		else if (g_gameState.tcl && g_inputState.f4) {
+			g_gameState.tcl = false;
+			g_inputState.f4 = false;
+		}
 		
 		// Don't update the world if the inventory screen  is open
 		if (g_gameState.inventoryMode == false) {

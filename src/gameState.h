@@ -20,6 +20,7 @@ struct GameState {
 	float mouseSensitivity = 100.0f;
 	bool inventoryMode = false;
 	bool showDebug = false;
+	bool tcl = false;
 
 	static constexpr int worldXMax = 100;
 	static constexpr int worldYMax = 100;
@@ -60,6 +61,7 @@ struct InputState {
 	bool d = false;
 	bool e = false;
 	bool f3 = false;
+	bool f4 = false;
 };
 
 extern InputState g_inputState;

@@ -54,7 +54,9 @@ void updateGameState(double dTime) {
 	}
 
 	// make this toggleable
-	//resolveCollisions2D();
+	if (!g_gameState.tcl) {
+		resolveCollisions2D();
+	}
 }
 
 
